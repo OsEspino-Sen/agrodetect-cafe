@@ -55,6 +55,27 @@ renderizador_markdown = MarkdownIt(
 ).enable(["table", "strikethrough"])
 
 
+def quitar_markdown_roto(texto):
+    """
+    Elimina negritas mal formadas que Groq a veces deja sueltas
+    (p. ej. '** texto', '**:' o '** : **'). El renderizador de
+    markdown no las convierte y terminarían visibles en pantalla.
+    """
+
+    if not texto:
+        return texto
+
+    texto = re.sub(
+        r"\*\*(?!\s)([^*\n]+?)(?<!\s)\*\*",
+        "\x00S\\1\x00E",
+        texto,
+    )
+
+    texto = texto.replace("**", "")
+
+    return re.sub(r"\x00S(.+?)\x00E", r"**\1**", texto)
+
+
 def formatear_markdown(texto):
     """
     Convierte el texto con markdown de Groq a HTML para poder
@@ -64,7 +85,7 @@ def formatear_markdown(texto):
     if not texto:
         return ""
 
-    return renderizador_markdown.render(texto)
+    return renderizador_markdown.render(quitar_markdown_roto(texto))
 
 
 def limpiar_markdown(texto):
