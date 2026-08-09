@@ -10,7 +10,7 @@ El sistema combina un modelo de clasificación de imágenes desarrollado con Ten
 
 ## 🎯 Objetivo
 
-Desarrollar un Servicio Web basado en principios de Computación en la Nube que permita detectar enfermedades en hojas de café mediante Inteligencia Artificial y proporcionar recomendaciones técnicas para su manejo preventivo.
+Desarrollar un Servicio Web basado en principios de Computación en la Nube que permita clasificar imágenes de hojas de café dentro de las categorías aprendidas por el modelo mediante Inteligencia Artificial y proporcionar recomendaciones técnicas para su manejo preventivo.
 
 La aplicación permite al usuario:
 
@@ -54,6 +54,10 @@ Repositorio:
 * 🖼️ Visualización de la imagen seleccionada.
 * 🧠 Clasificación mediante Inteligencia Artificial.
 * 📊 Porcentaje de confianza de la predicción.
+* 📈 Distribución de probabilidades de las cuatro clases.
+* 🔎 Comparación entre la primera y segunda predicción.
+* 📊 Diferencia porcentual entre las principales posibilidades.
+* ⚠️ Indicador de competencia entre clases para interpretar predicciones con valores cercanos.
 * 🌱 Identificación de la condición o enfermedad detectada.
 * 🤖 Integración con la API de Groq.
 * 📋 Descripción y diferenciación de la enfermedad.
@@ -191,36 +195,79 @@ Las clases utilizadas por el modelo se encuentran definidas en:
 class_names.json
 ```
 
+### Rendimiento durante la evaluación
+
+Durante la evaluación realizada sobre las imágenes disponibles del
+dataset se obtuvo:
+
+- Accuracy: **83.44%**
+- Clases evaluadas: **4**
+- Imágenes evaluadas: **1,800**
+
+La matriz de confusión y el reporte de clasificación mostraron
+diferencias de rendimiento entre las clases. Por esta razón, el
+porcentaje mostrado por el modelo debe interpretarse como una
+probabilidad de clasificación y no como una confirmación absoluta
+del diagnóstico.
+
+### Interpretación de la confianza
+
+El porcentaje mostrado corresponde a la probabilidad producida por el
+clasificador para la clase seleccionada.
+
+Una confianza elevada **no garantiza que la enfermedad esté realmente
+presente**, especialmente cuando la imagen corresponde a una condición
+que no pertenece a las clases utilizadas durante el entrenamiento.
+
+La aplicación también muestra la distribución de probabilidades entre
+las cuatro clases para permitir una interpretación más transparente de
+la predicción.
+
 ---
 
 ## 🌱 Dataset
 
-Para el desarrollo del modelo se utilizó un conjunto de imágenes de hojas de café proporcionado para el proyecto académico.
+El modelo fue entrenado con 1,800 imágenes de hojas de café distribuidas
+en cuatro clases:
 
-Durante el procesamiento del dataset se trabajó con imágenes correspondientes a diferentes condiciones, incluyendo:
+| Clase | Imágenes |
+|---|---:|
+| Healthy | 400 |
+| Minador | 500 |
+| Phoma | 500 |
+| Roya | 400 |
 
-* Hojas saludables.
-* Roya.
-* Minador de la hoja.
-* Phoma.
+Las clases corresponden exclusivamente a las categorías disponibles
+en el dataset utilizado para entrenar el modelo.
 
-El dataset fue utilizado durante la etapa de desarrollo y entrenamiento del modelo en Google Colab.
-
-El modelo entrenado posteriormente fue exportado como:
-
-```text
-modelo_cafe.keras
-```
-
-para ser utilizado en la aplicación web.
+Por lo tanto, el sistema **no puede identificar de forma confiable
+enfermedades que no formen parte de estas cuatro clases**. Una
+enfermedad externa al conjunto de entrenamiento puede ser clasificada
+incorrectamente como alguna de las clases conocidas.
 
 ---
 
 ## 🤖 Integración con la API de Groq
 
-La API de Groq constituye un componente obligatorio del proyecto y se utiliza para complementar el diagnóstico generado por el modelo de visión artificial.
+La aplicación utiliza la **API de Groq** como servicio externo de
+Inteligencia Artificial generativa.
 
-Una vez obtenida la predicción, la aplicación utiliza la enfermedad o condición detectada como contexto para solicitar a Groq orientación técnica.
+La API recibe como contexto:
+
+- La clase principal predicha.
+- El porcentaje de confianza.
+- La distribución de probabilidades entre las clases.
+
+A partir de esta información, el modelo generativo produce orientación
+técnica estructurada para el usuario.
+
+La integración se realiza mediante la API compatible con el formato
+OpenAI proporcionado por GroqCloud. La clave utilizada corresponde a
+una credencial de **Groq** y no a una API Key de OpenAI.
+
+El modelo puede llamarse `openai/gpt-oss-120b` dentro de Groq y seguir
+siendo una solicitud hecha a Groq. La API Key sigue siendo
+`GROQ_API_KEY`.
 
 La información generada incluye:
 
@@ -310,25 +357,42 @@ Groq se utiliza como servicio externo de Inteligencia Artificial generativa para
 ### Arquitectura en la nube
 
 ```text
-                    GitHub
-                       │
-                       ▼
-             Streamlit Community
-                    Cloud
-                       │
-              ┌────────┴────────┐
-              │                 │
-              ▼                 ▼
-         Streamlit          TensorFlow
-         Web App              / Keras
-              │
-              │ diagnóstico
-              ▼
-           Groq API
-              │
-              ▼
-    Recomendaciones técnicas
+                         USUARIO
+                            │
+                            ▼
+                ┌─────────────────────┐
+                │ Streamlit Community │
+                │       Cloud         │
+                └──────────┬──────────┘
+                           │
+                           ▼
+                ┌─────────────────────┐
+                │    Aplicación       │
+                │     Streamlit       │
+                │                     │
+                │  ┌───────────────┐  │
+                │  │ TensorFlow /  │  │
+                │  │     Keras     │  │
+                │  └───────┬───────┘  │
+                └──────────┼──────────┘
+                           │
+                    Predicción
+                           │
+                           ▼
+                    ┌────────────┐
+                    │  Groq API  │
+                    └─────┬──────┘
+                          │
+                          ▼
+                Orientación técnica
+                          │
+                          ▼
+                        USUARIO
 ```
+
+TensorFlow/Keras se ejecuta como parte de la aplicación desplegada en
+Streamlit Community Cloud, mientras que Groq funciona como un servicio
+externo de IA generativa.
 
 Gracias a esta arquitectura, el usuario puede acceder al sistema desde Internet sin necesidad de ejecutar el modelo o la aplicación directamente en su computadora.
 
@@ -516,6 +580,28 @@ Recomendaciones preventivas
 Durante las pruebas, la aplicación desplegada fue capaz de recibir imágenes de hojas de café, realizar la clasificación mediante el modelo de Inteligencia Artificial y presentar el resultado al usuario.
 
 Posteriormente, la API de Groq genera orientación técnica relacionada con el diagnóstico obtenido.
+
+---
+
+## ⚠️ Alcance del modelo
+
+AgroDetect Café es un sistema de clasificación desarrollado para las
+cuatro clases presentes en el dataset:
+
+- Healthy
+- Minador
+- Phoma
+- Roya
+
+El modelo no fue entrenado con todas las enfermedades que pueden
+afectar al cultivo de café.
+
+Por esta razón, si una hoja presenta una enfermedad diferente a las
+clases disponibles, el modelo puede asignarla incorrectamente a una de
+las categorías conocidas.
+
+El resultado debe utilizarse como herramienta de apoyo y no como
+diagnóstico fitopatológico definitivo.
 
 ---
 
